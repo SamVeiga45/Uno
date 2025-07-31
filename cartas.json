@@ -1,0 +1,15 @@
+[
+  {"cor": "🔴", "valor": "0"},
+  {"cor": "🔴", "valor": "1"},
+  {"cor": "🔴", "valor": "2"},
+  {"cor": "🔴", "valor": "+2"},
+  {"cor": "🟢", "valor": "5"},
+  {"cor": "🟢", "valor": "7"},
+  {"cor": "🟢", "valor": "0"},
+  {"cor": "🔵", "valor": "9"},
+  {"cor": "🔵", "valor": "8"},
+  {"cor": "🟡", "valor": "+4"},
+  {"cor": "🟡", "valor": "Coringa"},
+  {"cor": "🔴", "valor": "Inverter"},
+  {"cor": "🔵", "valor": "Pular"}
+]
