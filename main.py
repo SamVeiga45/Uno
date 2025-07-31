@@ -6,7 +6,7 @@ import os
 import datetime
 import pytz
 
-TOKEN = os.getenv("BOT_TOKEN") or "INSIRA_SEU_TOKEN_AQUI"
+TOKEN = os.getenv("BOT_TOKEN") or "7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
