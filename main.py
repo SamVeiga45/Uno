@@ -4,7 +4,7 @@ import random
 import threading
 import time
 
-API_TOKEN = 'SEU_TOKEN_AQUI'
+API_TOKEN = '7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ'
 bot = telebot.TeleBot(API_TOKEN)
 
 partidas = {}  # {chat_id: {'jogadores': [id1, id2...], 'baralho': [], 'mesa': [], 'turno': 0, 'ultimo_movimento': timestamp}}
