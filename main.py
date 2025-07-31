@@ -1,114 +1,107 @@
 from flask import Flask, request
 import telebot
-import json
-import random
 import os
-import datetime
-import pytz
+import json
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = os.getenv("BOT_TOKEN") or "7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ"
+TOKEN = os.getenv("BOT_TOKEN") or "SEU_TOKEN_AQUI"
 bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)  # <-- CORRIGIDO
+app = Flask(__name__)
 
-# CONFIGURAÇÃO DE HORÁRIO
-fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+# Variáveis de controle
+PARTIDA_ATIVA = False
+JOGADORES = []
+MAX_JOGADORES = 10
+ID_GRUPO = -1001234567890  # troque para o ID real do grupo
 
-# LISTAS DE JOGO
-jogadores = []
-cartas_jogadores = {}
-jogo_ativo = False
-chat_id_partida = None
+# Cria teclado de entrada
+def teclado_entrada():
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("➕ Entrar no jogo", callback_data="entrar"))
+    return markup
 
-# CARREGAR CARTAS
-def carregar_cartas():
-    with open("numeros.json", "r", encoding="utf-8") as f1:
-        numeros = json.load(f1)
-    with open("acoes.json", "r", encoding="utf-8") as f2:
-        acoes = json.load(f2)
-    with open("especiais.json", "r", encoding="utf-8") as f3:
-        especiais = json.load(f3)
-    return numeros + acoes + especiais
+# Cria teclado de início
+def teclado_iniciar():
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("🎲 Iniciar Partida", callback_data="comecar"))
+    return markup
 
-# EMBARALHAR E DISTRIBUIR
-def distribuir_cartas(jogadores):
-    baralho = carregar_cartas()
-    random.shuffle(baralho)
-    mao = {}
-    for jogador in jogadores:
-        mao[jogador] = [baralho.pop() for _ in range(7)]
-    return mao, baralho
-
-# VERIFICAR HORÁRIO PERMITIDO
-def horario_valido():
-    agora = datetime.datetime.now(fuso_brasilia).time()
-    return agora >= datetime.time(6, 0) and agora <= datetime.time(23, 59)
-
-# COMANDOS DO BOT
-@bot.message_handler(commands=["startuno"])
-def startuno(message):
-    global jogadores, cartas_jogadores, jogo_ativo, chat_id_partida
-
-    if not horario_valido():
-        bot.reply_to(message, "⏰ O jogo só pode ser iniciado entre 6h e 00h (horário de Brasília).")
+# Botão para iniciar o UNO
+@bot.message_handler(commands=["uno"])
+def iniciar_uno(m):
+    global PARTIDA_ATIVA, JOGADORES
+    if m.chat.id != ID_GRUPO:
+        bot.reply_to(m, "Este comando só pode ser usado no grupo principal.")
         return
 
-    if jogo_ativo:
-        bot.reply_to(message, "🚨 Uma partida já está em andamento!")
+    if PARTIDA_ATIVA:
+        bot.send_message(m.chat.id, "⚠️ Uma partida já está ativa.")
         return
 
-    jogadores = []
-    cartas_jogadores = {}
-    jogo_ativo = True
-    chat_id_partida = message.chat.id
-    bot.reply_to(message, "🎮 Partida de UNO criada!\nJogadores, enviem /entrar para participar.")
+    PARTIDA_ATIVA = True
+    JOGADORES = []
+    bot.send_message(m.chat.id, "🎮 Partida de UNO iniciada!\nClique para entrar:", reply_markup=teclado_entrada())
 
-@bot.message_handler(commands=["entrar"])
-def entrar(message):
-    global jogadores
-    user_id = message.from_user.id
-    nome = message.from_user.first_name
+# Callback dos botões
+@bot.callback_query_handler(func=lambda call: True)
+def callback(call):
+    global JOGADORES, PARTIDA_ATIVA
 
-    if not jogo_ativo:
-        bot.reply_to(message, "⚠️ Nenhuma partida ativa. Use /startuno para iniciar.")
-        return
+    if call.data == "entrar":
+        jogador = call.from_user
+        if jogador.id in [j["id"] for j in JOGADORES]:
+            bot.answer_callback_query(call.id, "Você já está na partida.")
+            return
 
-    if user_id in jogadores:
-        bot.reply_to(message, "❗️ Você já entrou na partida.")
-        return
+        if len(JOGADORES) >= MAX_JOGADORES:
+            bot.answer_callback_query(call.id, "Limite de jogadores atingido.")
+            return
 
-    jogadores.append(user_id)
-    bot.send_message(chat_id_partida, f"✅ {nome} entrou na partida.")
+        JOGADORES.append({
+            "id": jogador.id,
+            "nome": jogador.first_name,
+            "username": jogador.username or ""
+        })
 
-@bot.message_handler(commands=["iniciar"])
-def iniciar(message):
-    global cartas_jogadores, baralho
+        texto = "🧑‍🤝‍🧑 Jogadores até agora:\n"
+        for j in JOGADORES:
+            nome = f"@{j['username']}" if j["username"] else j["nome"]
+            texto += f"• {nome}\n"
 
-    if not jogadores:
-        bot.reply_to(message, "⚠️ Nenhum jogador entrou ainda.")
-        return
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=texto + "\nClique para entrar:",
+                              reply_markup=teclado_entrada())
 
-    cartas_jogadores, baralho = distribuir_cartas(jogadores)
+        # Se tiver ao menos 2 jogadores, mostrar botão de começar
+        if len(JOGADORES) >= 2:
+            bot.send_message(call.message.chat.id, "Pronto para começar?", reply_markup=teclado_iniciar())
 
-    for jogador_id in jogadores:
-        cartas = cartas_jogadores[jogador_id]
-        texto = "🃏 Suas cartas:\n" + "\n".join([f"- {carta}" for carta in cartas])
-        try:
-            bot.send_message(jogador_id, texto)
-        except:
-            bot.send_message(chat_id_partida, f"⚠️ Não consegui enviar as cartas para <a href='tg://user?id={jogador_id}'>esse jogador</a>. Verifique se ele iniciou o bot no privado.", parse_mode="HTML")
+    elif call.data == "comecar":
+        if len(JOGADORES) < 2:
+            bot.answer_callback_query(call.id, "Precisa de pelo menos 2 jogadores.")
+            return
 
-    bot.send_message(chat_id_partida, "🎲 Cartas distribuídas! Em breve a lógica de turnos será ativada.")
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text="🚨 Partida começando... Embaralhando cartas!")
 
-# WEBHOOK
-@app.route('/', methods=["POST"])
+        # AQUI entraremos com a lógica do jogo real
+        iniciar_partida(call.message.chat.id)
+
+def iniciar_partida(chat_id):
+    # Aqui você inicia a lógica do UNO: embaralhar, distribuir, definir turno etc.
+    bot.send_message(chat_id, "🃏 Ainda vamos implementar as cartas e rodadas...")
+
+# Flask webhook
+@app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
-    return "OK"
+    return "OK", 200
 
-@app.route('/')
-def home():
-    return "UNO bot rodando."
+@app.route("/")
+def index():
+    return "UNO Bot rodando"
 
-# INICIAR FLASK
-if __name__ == "__main__":  # <-- CORRIGIDO
-    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
