@@ -1,107 +1,86 @@
 from flask import Flask, request
 import telebot
-import os
-import json
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import os
+import threading
+import time
 
-# Token do bot
-TOKEN = os.getenv("BOT_TOKEN") or "7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ"
-bot = telebot.TeleBot(TOKEN)
+API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
 
-# Variáveis de controle
-PARTIDA_ATIVA = False
-JOGADORES = []
-MAX_JOGADORES = 10
-ID_GRUPO = -1001234567890  # ⬅️ Troque para o ID real do grupo
+# Armazena dados dos jogos ativos
+jogos = {}
 
-# Cria teclado para entrar
-def teclado_entrada():
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("➕ Entrar no jogo", callback_data="entrar"))
-    return markup
+# Tempo máximo por jogador (em segundos)
+TEMPO_POR_JOGADA = 60
 
-# Cria teclado para iniciar
-def teclado_iniciar():
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🎲 Iniciar Partida", callback_data="comecar"))
-    return markup
+def iniciar_jogo(chat_id):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Entrar no jogo", callback_data="entrar_jogo"))
+    bot.send_message(chat_id, "UNO 🎴! Quem quiser jogar, clique no botão abaixo para entrar:", reply_markup=keyboard)
+    jogos[chat_id] = {
+        "jogadores": [],
+        "vez": 0,
+        "jogo_iniciado": False,
+        "ultima_acao": time.time()
+    }
 
-# Comando para iniciar o UNO
+def proxima_vez(chat_id):
+    jogo = jogos.get(chat_id)
+    if not jogo or not jogo["jogadores"]:
+        return
+
+    jogo["vez"] = (jogo["vez"] + 1) % len(jogo["jogadores"])
+    jogador = jogo["jogadores"][jogo["vez"]]
+    bot.send_message(chat_id, f"É a vez de {jogador['nome']} jogar! Você tem {TEMPO_POR_JOGADA} segundos.")
+
+    # Inicia o temporizador da jogada
+    threading.Thread(target=aguardar_jogada, args=(chat_id, jogador['id'], jogo["vez"])).start()
+
+def aguardar_jogada(chat_id, jogador_id, vez):
+    time.sleep(TEMPO_POR_JOGADA)
+    jogo = jogos.get(chat_id)
+    if jogo and jogo["vez"] == vez:
+        bot.send_message(chat_id, "⏰ Tempo esgotado! Próximo jogador...")
+        proxima_vez(chat_id)
+
 @bot.message_handler(commands=["uno"])
-def iniciar_uno(m):
-    global PARTIDA_ATIVA, JOGADORES
-    if m.chat.id != ID_GRUPO:
-        bot.reply_to(m, "❌ Este comando só pode ser usado no grupo principal.")
+def handle_uno(msg):
+    chat_id = msg.chat.id
+    iniciar_jogo(chat_id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "entrar_jogo")
+def callback_entrar_jogo(call):
+    chat_id = call.message.chat.id
+    user = call.from_user
+    jogo = jogos.get(chat_id)
+
+    if any(j['id'] == user.id for j in jogo["jogadores"]):
+        bot.answer_callback_query(call.id, "Você já entrou no jogo.")
         return
 
-    if PARTIDA_ATIVA:
-        bot.send_message(m.chat.id, "⚠️ Uma partida já está ativa.")
-        return
+    jogo["jogadores"].append({"id": user.id, "nome": user.first_name})
+    bot.answer_callback_query(call.id, "Você entrou no jogo!")
 
-    PARTIDA_ATIVA = True
-    JOGADORES = []
-    bot.send_message(m.chat.id, "🎮 Partida de UNO iniciada!\nClique para entrar:", reply_markup=teclado_entrada())
+    jogadores_nomes = ', '.join([j['nome'] for j in jogo["jogadores"]])
+    bot.edit_message_text(f"Jogadores na partida: {jogadores_nomes}", chat_id, call.message.message_id)
 
-# Callback dos botões
-@bot.callback_query_handler(func=lambda call: True)
-def callback(call):
-    global JOGADORES, PARTIDA_ATIVA
-
-    if call.data == "entrar":
-        jogador = call.from_user
-        if jogador.id in [j["id"] for j in JOGADORES]:
-            bot.answer_callback_query(call.id, "❗️Você já está na partida.")
-            return
-
-        if len(JOGADORES) >= MAX_JOGADORES:
-            bot.answer_callback_query(call.id, "🚫 Limite de jogadores atingido.")
-            return
-
-        JOGADORES.append({
-            "id": jogador.id,
-            "nome": jogador.first_name,
-            "username": jogador.username or ""
-        })
-
-        texto = "🧑‍🤝‍🧑 Jogadores até agora:\n"
-        for j in JOGADORES:
-            nome = f"@{j['username']}" if j["username"] else j["nome"]
-            texto += f"• {nome}\n"
-
-        bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id,
-                              text=texto + "\nClique para entrar:",
-                              reply_markup=teclado_entrada())
-
-        if len(JOGADORES) >= 2:
-            bot.send_message(call.message.chat.id, "✅ Pronto para começar?", reply_markup=teclado_iniciar())
-
-    elif call.data == "comecar":
-        if len(JOGADORES) < 2:
-            bot.answer_callback_query(call.id, "⚠️ Precisa de pelo menos 2 jogadores.")
-            return
-
-        bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id,
-                              text="🚨 Partida começando... Embaralhando cartas!")
-
-        iniciar_partida(call.message.chat.id)
-
-# Lógica inicial da partida (temporário)
-def iniciar_partida(chat_id):
-    bot.send_message(chat_id, "🃏 Ainda vamos implementar as cartas e rodadas...")
+    # Iniciar o jogo automaticamente com 2+ jogadores
+    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
+        jogo["jogo_iniciado"] = True
+        bot.send_message(chat_id, "Jogo iniciado! 🎮")
+        proxima_vez(chat_id)
 
 # Webhook
-@app.route(f"/{TOKEN}", methods=["POST"])
+@app.route('/', methods=['POST'])
 def webhook():
-    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
-    return "OK", 200
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'invalid', 405
 
-@app.route("/")
-def index():
-    return "UNO Bot rodando!"
-
-# Iniciar servidor Flask
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
