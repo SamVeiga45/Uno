@@ -83,8 +83,8 @@ def entrar(message):
 def iniciar(message):
     global cartas_jogadores, baralho
 
-    if message.chat.id != chat_id_partida:
-        return
+   # if message.chat.id != chat_id_partida:
+   #     return
 
     if not jogadores:
         bot.reply_to(message, "⚠️ Nenhum jogador entrou ainda.")
