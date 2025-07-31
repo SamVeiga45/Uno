@@ -8,7 +8,7 @@ import pytz
 
 TOKEN = os.getenv("BOT_TOKEN") or "7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ"
 bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
+app = Flask(__name__)  # <-- CORRIGIDO
 
 # CONFIGURAÇÃO DE HORÁRIO
 fuso_brasilia = pytz.timezone("America/Sao_Paulo")
@@ -73,7 +73,7 @@ def entrar(message):
         return
 
     if user_id in jogadores:
-        bot.reply_to(message, "❗ Você já entrou na partida.")
+        bot.reply_to(message, "❗️ Você já entrou na partida.")
         return
 
     jogadores.append(user_id)
@@ -82,9 +82,6 @@ def entrar(message):
 @bot.message_handler(commands=["iniciar"])
 def iniciar(message):
     global cartas_jogadores, baralho
-
-   # if message.chat.id != chat_id_partida:
-   #     return
 
     if not jogadores:
         bot.reply_to(message, "⚠️ Nenhum jogador entrou ainda.")
@@ -112,6 +109,6 @@ def webhook():
 def home():
     return "UNO bot rodando."
 
-# INICIAR
-if __name__ == "__main__":
+# INICIAR FLASK
+if __name__ == "__main__":  # <-- CORRIGIDO
     app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
