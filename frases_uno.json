@@ -1,6 +1,42 @@
-[
-  "🔥 Vai esquentar agora!",
-  "😈 Prepare-se para o +4!",
-  "🔁 Reversão de rota!",
-  "🚫 Alguém ficou sem jogar!"
-]
+{
+  "inicio": [
+    "🔔 O jogo começou! Boa sorte, seus malandros!",
+    "🎮 Preparem-se para a batalha das cartas!",
+    "🃏 Que vença o mais sortudo... ou o mais trapaceiro!"
+  ],
+  "entrada_jogador": [
+    "{nome} entrou na partida. Bora ver se joga bem ou só sabe blefar...",
+    "Atenção! {nome} tá na área! 👀",
+    "{nome} se juntou ao jogo. Medo, hein?"
+  ],
+  "vitoria": [
+    "🏆 {nome} venceu! Alguém dá um troféu e uma carta nova pra essa lenda!",
+    "🎉 Fim de jogo! {nome} humilhou todo mundo!",
+    "🔥 {nome} ganhou! Os outros só assistiram..."
+  ],
+  "pular": [
+    "⏭️ {nome} foi pulado com classe!",
+    "😏 Pularam {nome}. Segue o jogo!",
+    "🚫 {nome}, hoje não."
+  ],
+  "+2": [
+    "💥 {nome}, toma esse +2 com carinho!",
+    "😂 +2 em {nome}! Quem mandou vacilar?",
+    "🎁 {nome} ganhou 2 cartinhas de presente!"
+  ],
+  "+4": [
+    "😈 +4 no {nome}! Agora segura essa!",
+    "💣 BUM! {nome} tomou +4 no peito!",
+    "🧨 +4 bem no meio da testa de {nome}!"
+  ],
+  "inverter": [
+    "🔄 Sentido invertido! Agora vai dar ruim...",
+    "↩️ Rodada virou! Quem tava ganhando vai chorar.",
+    "🌀 Inversão! Mudou o rumo da história!"
+  ],
+  "tchau": [
+    "👋 Valeu pela partida! Até a próxima!",
+    "🎲 Jogo encerrado. Vão treinar, vocês tão fracos!",
+    "🛑 Fim de jogo! Hora de dormir ou começar outra?"
+  ]
+}
