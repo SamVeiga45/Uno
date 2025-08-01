@@ -82,7 +82,7 @@ def distribuir_mao(baralho):
 def iniciar_jogo(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Entrar no jogo", callback_data="entrar_jogo"))
-    bot.send_message(chat_id, "UNO 🎴! Clique abaixo para entrar:", reply_markup=keyboard)
+    bot.send_message(chat_id, "UNO 🎴 BOA SORTE!", reply_markup=keyboard)
     jogos[str(chat_id)] = {
         "jogadores": [],
         "vez": 0,
@@ -155,9 +155,9 @@ def entrar_jogo(call):
     jogador = {"id": user.id, "nome": user.first_name}
     jogo["jogadores"].append(jogador)
     bot.answer_callback_query(call.id, "Entrou no jogo!")
-    bot.edit_message_text(
-        "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"]),
-        chat_id, call.message.message_id
+    bot.send_message(
+    chat_id,
+    "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
     )
     if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
         jogo["jogo_iniciado"] = True
