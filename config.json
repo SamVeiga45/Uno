@@ -1,7 +1,10 @@
 {
   "TOKEN": "7091777737:AAFP5a7WRPumgzN8z7bhuQLZH3g05z53xsQ",
   "ID_DONO": 123456789,
-  "HORARIO_INICIO": 6,
-  "HORARIO_FIM": 12,
-  "NOME_BOT": "UNO 🎮"
+  "HORARIO_INICIO": 7,
+  "HORARIO_FIM": 1,
+  "NOME_BOT": "UNO 🎮",
+  "tempo_por_jogada": 60,
+  "max_jogadores": 10,
+  "cores_disponiveis": ["🟥", "🟦", "🟨", "🟩"]
 }
