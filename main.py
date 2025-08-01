@@ -81,7 +81,7 @@ def distribuir_mao(baralho):
 
 def iniciar_jogo(chat_id):
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Entrar no jogo", callback_data="entrar_jogo"))
+    keyboard.add(InlineKeyboardButton("Entrar no Jogo", callback_data="entrar_jogo"))
     bot.send_message(chat_id, "JOGO DO UNO 🎴", reply_markup=keyboard)
     jogos[str(chat_id)] = {
         "jogadores": [],
