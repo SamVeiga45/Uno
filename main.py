@@ -12,40 +12,65 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# === Arquivos ===
 ARQ_PARTIDAS = "partidas_ativas.json"
 ARQ_JOGADORES = "jogadores.json"
 ARQ_CONFIG = "config.json"
 
-# === Configuração padrão ===
 TEMPO_POR_JOGADA = 60
+MAX_JOGADORES = 10
+
+# === Lê config.json ===
 if os.path.exists(ARQ_CONFIG):
     with open(ARQ_CONFIG, "r", encoding="utf-8") as f:
         cfg = json.load(f)
         TEMPO_POR_JOGADA = cfg.get("tempo_por_jogada", 60)
+        MAX_JOGADORES = cfg.get("max_jogadores", 10)
 
-# === Estruturas em memória ===
 jogos = {}
 
 with open("cartas.json", "r", encoding="utf-8") as f:
     TODAS_AS_CARTAS = json.load(f)
 
-# === Utilitários de JSON ===
 def salvar_partidas():
     with open(ARQ_PARTIDAS, "w", encoding="utf-8") as f:
         json.dump(jogos, f, ensure_ascii=False, indent=2)
 
-def salvar_jogadores(ranking):
+def salvar_jogadores(dados):
     with open(ARQ_JOGADORES, "w", encoding="utf-8") as f:
-        json.dump(ranking, f, ensure_ascii=False, indent=2)
+        json.dump(dados, f, ensure_ascii=False, indent=2)
 
 def carregar_ranking():
+    hoje = datetime.now().strftime("%Y-%m-%d")
     if os.path.exists(ARQ_JOGADORES):
         with open(ARQ_JOGADORES, "r", encoding="utf-8") as f:
-            return json.load(f)
+            dados = json.load(f)
+        # Limpa dados antigos
+        for jogador in dados.values():
+            jogador["jogos_hoje"] = {k: v for k, v in jogador["jogos_hoje"].items() if k == hoje}
+        salvar_jogadores(dados)
+        return dados
     return {}
 
-# === Lógica do jogo ===
+def atualizar_ranking(nome):
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    ranking = carregar_ranking()
+    if nome not in ranking:
+        ranking[nome] = {"vitorias": 0, "jogos_hoje": {}}
+    ranking[nome]["vitorias"] += 1
+    ranking[nome]["jogos_hoje"][hoje] = ranking[nome]["jogos_hoje"].get(hoje, 0) + 1
+    salvar_jogadores(ranking)
+
+@bot.message_handler(commands=["ranking"])
+def cmd_ranking(msg):
+    ranking = carregar_ranking()
+    top = sorted(ranking.items(), key=lambda x: x[1]["vitorias"], reverse=True)[:3]
+    if not top:
+        bot.send_message(msg.chat.id, "📊 Ainda não há vitórias registradas.")
+        return
+    texto = "🏆 Ranking dos melhores jogadores:\\n"
+    for i, (nome, dados) in enumerate(top, 1):
+        texto += f"{i}º {nome} – {dados['vitorias']} vitórias\\n"
+    bot.send_message(msg.chat.id, texto)
 def embaralhar_cartas():
     baralho = TODAS_AS_CARTAS * 2
     random.shuffle(baralho)
@@ -74,13 +99,11 @@ def proxima_vez(chat_id):
     jogo = jogos.get(str(chat_id))
     if not jogo or not jogo["jogadores"]:
         return
-
     jogo["vez"] = (jogo["vez"] + jogo["direcao"]) % len(jogo["jogadores"])
     jogador = jogo["jogadores"][jogo["vez"]]
     jogo["ultima_acao"] = time.time()
     salvar_partidas()
-
-    bot.send_message(chat_id, f"🃏 Carta na mesa: {jogo['carta_mesa']}\n🎯 Vez de {jogador['nome']}")
+    bot.send_message(chat_id, f"🃏 Carta na mesa: {jogo['carta_mesa']}\\n🎯 Vez de {jogador['nome']}")
     enviar_mao(jogador, chat_id)
     threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
 
@@ -102,7 +125,6 @@ def enviar_mao(jogador, chat_id):
     if jogadas_validas == 0:
         keyboard.add(InlineKeyboardButton("🛒 Comprar carta", callback_data=f"comprar|{chat_id}"))
     bot.send_message(jogador["id"], "🎴 Suas cartas:", reply_markup=keyboard)
-
 def carta_valida(carta, mesa, mao):
     if not mesa:
         return True
@@ -127,6 +149,9 @@ def entrar_jogo(call):
     if any(j["id"] == user.id for j in jogo["jogadores"]):
         bot.answer_callback_query(call.id, "Você já entrou.")
         return
+    if len(jogo["jogadores"]) >= MAX_JOGADORES:
+        bot.answer_callback_query(call.id, "Jogo cheio!")
+        return
     jogador = {"id": user.id, "nome": user.first_name}
     jogo["jogadores"].append(jogador)
     bot.answer_callback_query(call.id, "Entrou no jogo!")
@@ -142,7 +167,6 @@ def entrar_jogo(call):
         salvar_partidas()
         bot.send_message(chat_id, "🎲 Jogo iniciado!")
         proxima_vez(chat_id)
-
 @bot.callback_query_handler(func=lambda c: c.data.startswith("jogar|"))
 def jogar_carta(call):
     _, chat_id, carta = call.data.split("|")
@@ -197,15 +221,6 @@ def fim_de_jogo(chat_id):
 def novo_jogo(call):
     iniciar_jogo(call.message.chat.id)
 
-def atualizar_ranking(nome):
-    ranking = carregar_ranking()
-    hoje = datetime.now().strftime("%Y-%m-%d")
-    if nome not in ranking:
-        ranking[nome] = {"vitorias": 0, "jogos_hoje": {}}
-    ranking[nome]["vitorias"] += 1
-    ranking[nome]["jogos_hoje"][hoje] = ranking[nome]["jogos_hoje"].get(hoje, 0) + 1
-    salvar_jogadores(ranking)
-
 @app.route("/", methods=["POST"])
 def webhook():
     if request.headers.get("content-type") == "application/json":
@@ -216,7 +231,7 @@ def webhook():
 
 @app.route("/ping")
 def ping():
-    return "UNO com salvamento, novo jogo e ranking funcionando ✅", 200
+    return "UNO com ranking, config e limpeza diária ✅", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
