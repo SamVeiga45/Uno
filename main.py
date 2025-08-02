@@ -147,9 +147,11 @@ def iniciar_jogo(chat_id):
         "baralho": embaralhar_cartas(),
         "carta_mesa": None,
         "esperando_cor": None,
-        "ultima_acao": time.time()
+        "ultima_acao": time.time(),
+        "msg_balao": None,
+        "msg_carta_grupo": None
     }
-    salvar_partidas()
+ar_partidas()
 
 def proxima_vez(chat_id):
     jogo = jogos.get(str(chat_id))
@@ -160,10 +162,20 @@ def proxima_vez(chat_id):
     jogo["ultima_acao"] = time.time()
     salvar_partidas()
     carta = jogo["carta_mesa"]
-    bot.send_message(
-        chat_id,
-        f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
-    )
+    msg = bot.send_message(
+    chat_id,
+    f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
+)
+
+# Depois que o novo balão for enviado com sucesso, apaga o anterior
+anterior = jogo.get("msg_balao")
+jogo["msg_balao"] = msg.message_id
+
+if anterior:
+    try:
+        bot.delete_message(chat_id, anterior)
+    except:
+        pass
 
     enviar_mao(jogador, chat_id)
     threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
@@ -250,21 +262,27 @@ def entrar_jogo(call):
     chat_id = str(call.message.chat.id)
     user = call.from_user
     jogo = jogos.get(chat_id)
+
     if any(j["id"] == user.id for j in jogo["jogadores"]):
         bot.answer_callback_query(call.id, "Você já entrou.")
         return
+
     if len(jogo["jogadores"]) >= MAX_JOGADORES:
         bot.answer_callback_query(call.id, "Jogo cheio!")
         return
+
     jogador = {"id": user.id, "nome": user.first_name}
     jogo["jogadores"].append(jogador)
+
     bot.answer_callback_query(call.id, "Entrou no jogo!")
     bot.send_message(
-    chat_id,
-    "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
+        chat_id,
+        "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
     )
-    if len(jogo["jogadores"]) >= 1 and not jogo["jogo_iniciado"]: #TROCAR PARA (2) APÓS TESTES
+
+    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:  # volte o 1 para 2 quando for testar com mais gente
         jogo["jogo_iniciado"] = True
+
         for j in jogo["jogadores"]:
             j["mao"] = distribuir_mao(jogo["baralho"])
 
@@ -272,6 +290,19 @@ def entrar_jogo(call):
         salvar_partidas()
 
         bot.send_message(chat_id, "🎲 Jogo iniciado!")
+
+        # ⬇️ Enviar sticker da carta inicial no grupo
+        sticker_id = get_sticker_id(jogo["carta_mesa"])
+        if sticker_id:
+            msg = bot.send_sticker(chat_id, sticker_id)
+            jogo["msg_carta_grupo"] = msg.message_id
+        else:
+            msg = bot.send_message(chat_id, f"Carta inicial: {jogo['carta_mesa']}")
+            jogo["msg_carta_grupo"] = msg.message_id
+
+        # ⬇️ Enviar as mãos para todos os jogadores que clicaram em "Entrar no jogo"
+        for j in jogo["jogadores"]:
+            enviar_mao(j, chat_id)
 
         # Agora sim inicia a rodada
         proxima_vez(chat_id)
@@ -297,7 +328,18 @@ def jogar_carta(call):
     bot.answer_callback_query(call.id, f"✅ Jogou {carta}")
     sticker_id = get_sticker_id(carta)
     if sticker_id:
-        bot.send_sticker(chat_id, sticker_id)
+        msg = bot.send_sticker(chat_id, sticker_id)
+
+    # Depois de enviar com sucesso, apaga o anterior
+        anterior = jogo.get("msg_carta_grupo")
+        jogo["msg_carta_grupo"] = msg.message_id
+
+        if anterior:
+            try:
+                bot.delete_message(chat_id, anterior)
+            except:
+                pass
+
     else:
         bot.send_message(chat_id, f"{jogador['nome']} jogou {carta}")
     if not jogador["mao"]:
@@ -334,6 +376,14 @@ def fim_de_jogo(chat_id):
                     bot.delete_message(jogador["id"], mid)
                 except:
                     pass
+
+      try:
+        if jogos[chat_id].get("msg_balao"):
+            bot.delete_message(int(chat_id), jogos[chat_id]["msg_balao"])
+        if jogos[chat_id].get("msg_carta_grupo"):
+            bot.delete_message(int(chat_id), jogos[chat_id]["msg_carta_grupo"])
+    except:
+        pass
 
         jogos.pop(chat_id)
         # Opcional: limpar variável se quiser
