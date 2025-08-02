@@ -223,7 +223,10 @@ def carta_valida(carta, mesa, mao):
 @bot.message_handler(commands=["stop"])
 def cmd_stop(msg):
     chat_id = str(msg.chat.id)
-    if chat_id in jogos:
+
+    partida_ativa = jogos.get(chat_id)
+
+    if partida_ativa:
         del jogos[chat_id]
         salvar_partidas()
         bot.send_message(msg.chat.id, "🚫 A partida foi encerrada manualmente.")
