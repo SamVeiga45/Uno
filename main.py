@@ -265,10 +265,6 @@ def entrar_jogo(call):
 
         bot.send_message(chat_id, "🎲 Jogo iniciado!")
 
-        # ⬇️ Enviar as mãos para todos os jogadores que clicaram em "Entrar no jogo"
-        for j in jogo["jogadores"]:
-            enviar_mao(j, chat_id)
-
         # Agora sim inicia a rodada
         proxima_vez(chat_id)
 
