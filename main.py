@@ -151,7 +151,7 @@ def iniciar_jogo(chat_id):
         "msg_balao": None,
         "msg_carta_grupo": None
     }
-ar_partidas()
+salvar_partidas()
 
 def proxima_vez(chat_id):
     jogo = jogos.get(str(chat_id))
@@ -162,20 +162,20 @@ def proxima_vez(chat_id):
     jogo["ultima_acao"] = time.time()
     salvar_partidas()
     carta = jogo["carta_mesa"]
+
     msg = bot.send_message(
-    chat_id,
-    f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
-)
+        chat_id,
+        f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
+    )
 
-# Depois que o novo balão for enviado com sucesso, apaga o anterior
-anterior = jogo.get("msg_balao")
-jogo["msg_balao"] = msg.message_id
-
-if anterior:
-    try:
-        bot.delete_message(chat_id, anterior)
-    except:
-        pass
+    # ✅ Apaga balão anterior
+    anterior = jogo.get("msg_balao")
+    jogo["msg_balao"] = msg.message_id
+    if anterior:
+        try:
+            bot.delete_message(chat_id, anterior)
+        except:
+            pass
 
     enviar_mao(jogador, chat_id)
     threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
@@ -377,13 +377,13 @@ def fim_de_jogo(chat_id):
                 except:
                     pass
 
-      try:
-        if jogos[chat_id].get("msg_balao"):
-            bot.delete_message(int(chat_id), jogos[chat_id]["msg_balao"])
-        if jogos[chat_id].get("msg_carta_grupo"):
-            bot.delete_message(int(chat_id), jogos[chat_id]["msg_carta_grupo"])
-    except:
-        pass
+        try:
+            if jogos[chat_id].get("msg_balao"):
+                bot.delete_message(int(chat_id), jogos[chat_id]["msg_balao"])
+            if jogos[chat_id].get("msg_carta_grupo"):
+                bot.delete_message(int(chat_id), jogos[chat_id]["msg_carta_grupo"])
+        except:
+            pass
 
         jogos.pop(chat_id)
         # Opcional: limpar variável se quiser
