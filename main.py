@@ -196,8 +196,7 @@ def aguardar_jogada(chat_id, nome, vez):
             except:
                 pass
 
-proxima_vez(chat_id)
-
+        proxima_vez(chat_id)
 
 def enviar_mao(jogador, chat_id):
     jogo = jogos[str(chat_id)]
