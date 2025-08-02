@@ -16,7 +16,7 @@ ARQ_PARTIDAS = "partidas_ativas.json"
 ARQ_JOGADORES = "jogadores.json"
 ARQ_CONFIG = "config.json"
 
-TEMPO_POR_JOGADA = 60
+TEMPO_POR_JOGADA = 300
 MAX_JOGADORES = 10
 
 # === Lê config.json ===
