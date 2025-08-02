@@ -238,12 +238,12 @@ def fim_de_jogo(chat_id):
     chat_id = str(chat_id)
     if chat_id in jogos:
         # Limpa todas as mensagens privadas dos jogadores
-    for jogador in jogos[chat_id]["jogadores"]:
-        for mid in jogador.get("mensagens_para_apagar", []):
-            try:
-                bot.delete_message(jogador["id"], mid)
-            except:
-                pass
+        for jogador in jogos[chat_id]["jogadores"]:
+            for mid in jogador.get("mensagens_para_apagar", []):
+                try:
+                    bot.delete_message(jogador["id"], mid)
+                except:
+                    pass
 
         jogos.pop(chat_id)
         # Opcional: limpar variável se quiser
