@@ -179,6 +179,14 @@ def enviar_mao(jogador, chat_id):
     jogo = jogos[str(chat_id)]
     jogador.setdefault("mensagens_para_apagar", [])
     jogador["ultima_msg_id"] = None
+    
+    # 🧹 Apaga as mensagens antigas (stickers e botões)
+    for mid in jogador.get("mensagens_para_apagar", []):
+        try:
+            bot.delete_message(jogador["id"], mid)
+        except:
+            pass
+    jogador["mensagens_para_apagar"] = []
 
     for carta in jogador["mao"]:
         cor, valor = carta.split(" ", 1)
