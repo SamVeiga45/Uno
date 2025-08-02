@@ -321,5 +321,10 @@ def webhook():
 def ping():
     return "UNO com ranking, config e limpeza diária ✅", 200
 
+@bot.message_handler(content_types=["sticker"])
+def receber_sticker(msg):
+    sticker_id = msg.sticker.file_id
+    bot.send_message(msg.chat.id, f"🆔 ID do sticker: `{sticker_id}`", parse_mode="Markdown")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
