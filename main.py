@@ -161,13 +161,7 @@ def proxima_vez(chat_id):
     jogador = jogo["jogadores"][jogo["vez"]]
     jogo["ultima_acao"] = time.time()
     salvar_partidas()
-    carta = jogo["carta_mesa"]
-
-    msg = bot.send_message(
-        chat_id,
-        f"🃏 Sua vez: {jogador['nome']}"
-    )
-
+    msg = bot.send_message(chat_id, f"🃏 Sua vez: {jogador['nome']}")
 
     # ✅ Apaga balão anterior
     anterior = jogo.get("msg_balao")
@@ -187,9 +181,8 @@ def aguardar_jogada(chat_id, nome, vez):
     if jogo and jogo["vez"] == vez and not jogo.get("esperando_cor"):
         msg = bot.send_message(chat_id, "⏰ Tempo esgotado! Próximo jogador...")
 
-        # Apaga o balão anterior se houver
-        anterior = jogos[str(chat_id)].get("msg_balao")
-        jogos[str(chat_id)]["msg_balao"] = msg.message_id
+        anterior = jogo.get("msg_balao")
+        jogo["msg_balao"] = msg.message_id
 
         if anterior:
             try:
@@ -292,7 +285,12 @@ def entrar_jogo(call):
         "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
     )
 
-    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:  # volte o 1 para 2 quando for testar com mais gente
+     # volte o 1 para 2 quando for testar com mais gente
+    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
+        kb = InlineKeyboardMarkup()
+        kb.add(InlineKeyboardButton("🚀 Iniciar Partida", callback_data="iniciar_partida"))
+        bot.send_message(chat_id, "🎮 Já temos jogadores suficientes. Clique abaixo para iniciar:", reply_markup=kb)
+
         jogo["jogo_iniciado"] = True
 
         for j in jogo["jogadores"]:
@@ -318,6 +316,37 @@ def entrar_jogo(call):
 
         # Agora sim inicia a rodada
         proxima_vez(chat_id)
+
+@bot.callback_query_handler(func=lambda c: c.data == "iniciar_partida")
+def iniciar_partida(call):
+    chat_id = str(call.message.chat.id)
+    jogo = jogos.get(chat_id)
+
+    if not jogo or jogo["jogo_iniciado"]:
+        return
+
+    jogo["jogo_iniciado"] = True
+    for j in jogo["jogadores"]:
+        j["mao"] = distribuir_mao(jogo["baralho"])
+
+    jogo["carta_mesa"] = jogo["baralho"].pop()
+    salvar_partidas()
+
+    bot.send_message(chat_id, "🎲 Jogo iniciado!")
+
+    # ⬇️ Enviar sticker da carta inicial no grupo
+    sticker_id = get_sticker_id(jogo["carta_mesa"])
+    if sticker_id:
+        msg = bot.send_sticker(chat_id, sticker_id)
+        jogo["msg_carta_grupo"] = msg.message_id
+    else:
+        msg = bot.send_message(chat_id, f"Carta inicial: {jogo['carta_mesa']}")
+        jogo["msg_carta_grupo"] = msg.message_id
+
+    for j in jogo["jogadores"]:
+        enviar_mao(j, int(chat_id))
+
+    proxima_vez(chat_id)
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("jogar|"))
 def jogar_carta(call):
