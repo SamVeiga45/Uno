@@ -217,10 +217,19 @@ def entrar_jogo(call):
         jogo["jogo_iniciado"] = True
         for j in jogo["jogadores"]:
             j["mao"] = distribuir_mao(jogo["baralho"])
+
         jogo["carta_mesa"] = jogo["baralho"].pop()
         salvar_partidas()
+
         bot.send_message(chat_id, "🎲 Jogo iniciado!")
+
+        # ⬇️ Enviar as mãos para todos os jogadores que clicaram em "Entrar no jogo"
+        for j in jogo["jogadores"]:
+            enviar_mao(j, chat_id)
+
+        # Agora sim inicia a rodada
         proxima_vez(chat_id)
+
 @bot.callback_query_handler(func=lambda c: c.data.startswith("jogar|"))
 def jogar_carta(call):
     _, chat_id, carta = call.data.split("|")
