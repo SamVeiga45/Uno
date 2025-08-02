@@ -143,7 +143,7 @@ def enviar_mao(jogador, chat_id):
             jogadas_validas += 1
             keyboard.add(InlineKeyboardButton(carta, callback_data=f"jogar|{chat_id}|{carta}"))
     if jogadas_validas == 0:
-        keyboard.add(InlineKeyboardButton("🛒 Comprar carta", callback_data=f"comprar|{chat_id}"))
+        keyboard.add(InlineKeyboardButton("🛒 Comprar Carta", callback_data=f"comprar|{chat_id}"))
     msg = bot.send_message(jogador["id"], "🎴 Suas cartas:", reply_markup=keyboard)
     jogador.setdefault("mensagens_para_apagar", []).append(msg.message_id)
     jogador["ultima_msg_id"] = msg.message_id  # para limpar após jogar
