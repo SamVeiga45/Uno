@@ -213,7 +213,7 @@ def entrar_jogo(call):
     chat_id,
     "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
     )
-    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
+    if len(jogo["jogadores"]) >= 1 and not jogo["jogo_iniciado"]: #TROCAR PARA (2) APÓS TESTES
         jogo["jogo_iniciado"] = True
         for j in jogo["jogadores"]:
             j["mao"] = distribuir_mao(jogo["baralho"])
