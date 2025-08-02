@@ -184,22 +184,29 @@ def enviar_mao(jogador, chat_id):
         cor, valor = carta.split(" ", 1)
         ids = STICKERS.get(cor, {}).get(valor, [])
         if not ids:
-            continue  # Pula se não achar o sticker
+            continue
         sticker_id = random.choice(ids)
-        msg = bot.send_sticker(jogador["id"], sticker_id)
+        
+        if carta_valida(carta, jogo["carta_mesa"], jogador["mao"]):
+            # Se pode jogar essa carta, cria botão específico
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("🎴 Jogar", callback_data=f"jogar|{chat_id}|{carta}"))
+            msg = bot.send_sticker(jogador["id"], sticker_id, reply_markup=keyboard)
+        else:
+            # Só envia a carta sem botão
+            msg = bot.send_sticker(jogador["id"], sticker_id)
+
         jogador["mensagens_para_apagar"].append(msg.message_id)
 
-    # Criar botões das cartas jogáveis
-    keyboard = InlineKeyboardMarkup(row_width=3)
-    jogadas_validas = 0
-    for carta in jogador["mao"]:
-        if carta_valida(carta, jogo["carta_mesa"], jogador["mao"]):
-            jogadas_validas += 1
-            keyboard.add(InlineKeyboardButton("Jogar", callback_data=f"jogar|{chat_id}|{carta}"))
-    if jogadas_validas == 0:
-        keyboard.add(InlineKeyboardButton("🛒 Comprar Carta", callback_data=f"comprar|{chat_id}"))
-    msg = bot.send_message(jogador["id"], "🎴 Selecione sua jogada:", reply_markup=keyboard)
-    jogador["ultima_msg_id"] = msg.message_id
+    # Se nenhuma jogada for válida, envia botão de comprar
+    jogadas_validas = any(
+        carta_valida(c, jogo["carta_mesa"], jogador["mao"]) for c in jogador["mao"]
+    )
+    if not jogadas_validas:
+        kb = InlineKeyboardMarkup()
+        kb.add(InlineKeyboardButton("🛒 Comprar Carta", callback_data=f"comprar|{chat_id}"))
+        msg = bot.send_message(jogador["id"], "Nenhuma jogada possível:", reply_markup=kb)
+        jogador["mensagens_para_apagar"].append(msg.message_id)
 
 def carta_valida(carta, mesa, mao):
     if not mesa:
