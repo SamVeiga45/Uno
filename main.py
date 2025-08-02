@@ -248,13 +248,30 @@ def carta_valida(carta, mesa, mao):
 @bot.message_handler(commands=["stop"])
 def cmd_stop(msg):
     chat_id = str(msg.chat.id)
-
     partida_ativa = jogos.get(chat_id)
 
     if partida_ativa:
+        # Limpa DMs dos jogadores
+        for jogador in partida_ativa["jogadores"]:
+            for mid in jogador.get("mensagens_para_apagar", []):
+                try:
+                    bot.delete_message(jogador["id"], mid)
+                except:
+                    pass
+            jogador["mensagens_para_apagar"] = []
+
+        # Apaga balões do grupo
+        try:
+            if partida_ativa.get("msg_balao"):
+                bot.delete_message(int(chat_id), partida_ativa["msg_balao"])
+            if partida_ativa.get("msg_carta_grupo"):
+                bot.delete_message(int(chat_id), partida_ativa["msg_carta_grupo"])
+        except:
+            pass
+
         del jogos[chat_id]
         salvar_partidas()
-        bot.send_message(msg.chat.id, "🚫 A partida foi encerrada manualmente.")
+        bot.send_message(msg.chat.id, "🚫 A partida foi encerrada e todas as mensagens foram apagadas.")
     else:
         bot.send_message(msg.chat.id, "❌ Nenhuma partida ativa para encerrar.")
 
@@ -286,36 +303,41 @@ def entrar_jogo(call):
     )
 
      # volte o 1 para 2 quando for testar com mais gente
-    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
+   if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("🚀 Iniciar Partida", callback_data="iniciar_partida"))
-        bot.send_message(chat_id, "🎮 Já temos jogadores suficientes. Clique abaixo para iniciar:", reply_markup=kb)
+        kb.add(InlineKeyboardButton("🚀 Iniciar partida", callback_data="iniciar_partida"))
+        bot.send_message(chat_id, "Clique abaixo para começar a partida:", reply_markup=kb)
 
-        jogo["jogo_iniciado"] = True
+@bot.callback_query_handler(func=lambda c: c.data == "iniciar_partida")
+def iniciar_partida(call):
+    chat_id = str(call.message.chat.id)
+    jogo = jogos.get(chat_id)
 
-        for j in jogo["jogadores"]:
-            j["mao"] = distribuir_mao(jogo["baralho"])
+    if not jogo or jogo["jogo_iniciado"]:
+        return
 
-        jogo["carta_mesa"] = jogo["baralho"].pop()
-        salvar_partidas()
+    jogo["jogo_iniciado"] = True
 
-        bot.send_message(chat_id, "🎲 Jogo iniciado!")
+    for j in jogo["jogadores"]:
+        j["mao"] = distribuir_mao(jogo["baralho"])
 
-        # ⬇️ Enviar sticker da carta inicial no grupo
-        sticker_id = get_sticker_id(jogo["carta_mesa"])
-        if sticker_id:
-            msg = bot.send_sticker(chat_id, sticker_id)
-            jogo["msg_carta_grupo"] = msg.message_id
-        else:
-            msg = bot.send_message(chat_id, f"Carta inicial: {jogo['carta_mesa']}")
-            jogo["msg_carta_grupo"] = msg.message_id
+    jogo["carta_mesa"] = jogo["baralho"].pop()
+    salvar_partidas()
 
-        # ⬇️ Enviar as mãos para todos os jogadores que clicaram em "Entrar no jogo"
-        for j in jogo["jogadores"]:
-            enviar_mao(j, chat_id)
+    bot.send_message(chat_id, "🎲 Jogo iniciado!")
 
-        # Agora sim inicia a rodada
-        proxima_vez(chat_id)
+    sticker_id = get_sticker_id(jogo["carta_mesa"])
+    if sticker_id:
+        msg = bot.send_sticker(chat_id, sticker_id)
+        jogo["msg_carta_grupo"] = msg.message_id
+    else:
+        msg = bot.send_message(chat_id, f"Carta inicial: {jogo['carta_mesa']}")
+        jogo["msg_carta_grupo"] = msg.message_id
+
+    for j in jogo["jogadores"]:
+        enviar_mao(j, chat_id)
+
+    proxima_vez(chat_id)
 
 @bot.callback_query_handler(func=lambda c: c.data == "iniciar_partida")
 def iniciar_partida(call):
