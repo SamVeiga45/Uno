@@ -31,6 +31,9 @@ jogos = {}
 with open("cartas.json", "r", encoding="utf-8") as f:
     TODAS_AS_CARTAS = json.load(f)
 
+with open("stickers.json", "r", encoding="utf-8") as f:
+    STICKERS = json.load(f)
+
 def salvar_partidas():
     with open(ARQ_PARTIDAS, "w", encoding="utf-8") as f:
         json.dump(jogos, f, ensure_ascii=False, indent=2)
@@ -125,6 +128,13 @@ def legenda_cartao(carta):
 
     return f"Carta {cor_nome} {valor} — jogue uma carta {cor_nome} ou outro {valor} de qualquer cor."
 
+def get_sticker_id(carta):
+    if not carta:
+        return None
+    cor, valor = carta.split(" ", 1)
+    candidatos = STICKERS.get(cor, {}).get(valor, [])
+    return random.choice(candidatos) if candidatos else None
+
 def iniciar_jogo(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Entrar no Jogo", callback_data="entrar_jogo"))
@@ -167,17 +177,29 @@ def aguardar_jogada(chat_id, nome, vez):
 
 def enviar_mao(jogador, chat_id):
     jogo = jogos[str(chat_id)]
+    jogador.setdefault("mensagens_para_apagar", [])
+    jogador["ultima_msg_id"] = None
+
+    for carta in jogador["mao"]:
+        cor, valor = carta.split(" ", 1)
+        ids = STICKERS.get(cor, {}).get(valor, [])
+        if not ids:
+            continue  # Pula se não achar o sticker
+        sticker_id = random.choice(ids)
+        msg = bot.send_sticker(jogador["id"], sticker_id)
+        jogador["mensagens_para_apagar"].append(msg.message_id)
+
+    # Criar botões das cartas jogáveis
     keyboard = InlineKeyboardMarkup(row_width=3)
     jogadas_validas = 0
     for carta in jogador["mao"]:
         if carta_valida(carta, jogo["carta_mesa"], jogador["mao"]):
             jogadas_validas += 1
-            keyboard.add(InlineKeyboardButton(carta, callback_data=f"jogar|{chat_id}|{carta}"))
+            keyboard.add(InlineKeyboardButton("Jogar", callback_data=f"jogar|{chat_id}|{carta}"))
     if jogadas_validas == 0:
         keyboard.add(InlineKeyboardButton("🛒 Comprar Carta", callback_data=f"comprar|{chat_id}"))
-    msg = bot.send_message(jogador["id"], "🎴 Suas cartas:", reply_markup=keyboard)
-    jogador.setdefault("mensagens_para_apagar", []).append(msg.message_id)
-    jogador["ultima_msg_id"] = msg.message_id  # para limpar após jogar
+    msg = bot.send_message(jogador["id"], "🎴 Selecione sua jogada:", reply_markup=keyboard)
+    jogador["ultima_msg_id"] = msg.message_id
 
 def carta_valida(carta, mesa, mao):
     if not mesa:
@@ -259,7 +281,11 @@ def jogar_carta(call):
         pass
     jogo["carta_mesa"] = carta
     bot.answer_callback_query(call.id, f"✅ Jogou {carta}")
-    bot.send_message(chat_id, f"{jogador['nome']} jogou {carta}")
+    sticker_id = get_sticker_id(carta)
+    if sticker_id:
+        bot.send_sticker(chat_id, sticker_id)
+    else:
+        bot.send_message(chat_id, f"{jogador['nome']} jogou {carta}")
     if not jogador["mao"]:
         bot.send_message(chat_id, f"🏆 {jogador['nome']} venceu o jogo!")
         atualizar_ranking(jogador["nome"])
