@@ -153,6 +153,34 @@ def iniciar_jogo(chat_id):
     }
 salvar_partidas()
 
+def proxima_vez(chat_id, forcar_mesmo_jogador=False):
+    jogo = jogos.get(str(chat_id))
+    if not jogo or not jogo["jogadores"]:
+        return
+
+    if not forcar_mesmo_jogador:
+        jogo["vez"] = (jogo["vez"] + jogo["direcao"]) % len(jogo["jogadores"])
+
+    jogador = jogo["jogadores"][jogo["vez"]]
+    jogo["ultima_acao"] = time.time()
+    salvar_partidas()
+
+    msg = bot.send_message(
+        chat_id,
+        f"🃏 Sua vez: {jogador['nome']}"
+    )
+
+    anterior = jogo.get("msg_balao")
+    jogo["msg_balao"] = msg.message_id
+    if anterior:
+        try:
+            bot.delete_message(chat_id, anterior)
+        except:
+            pass
+
+    enviar_mao(jogador, chat_id)
+    threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
+
 def proxima_vez(chat_id):
     jogo = jogos.get(str(chat_id))
     if not jogo or not jogo["jogadores"]:
@@ -223,10 +251,11 @@ def enviar_mao(jogador, chat_id):
 
         jogador["mensagens_para_apagar"].append(msg.message_id)
 
-    # Se nenhuma jogada for válida, envia botão de comprar
+        # Se nenhuma jogada for válida, envia botão de comprar
     jogadas_validas = any(
         carta_valida(c, jogo["carta_mesa"], jogador["mao"]) for c in jogador["mao"]
     )
+
     if not jogadas_validas:
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("🛒 Comprar Carta", callback_data=f"comprar|{chat_id}"))
@@ -375,42 +404,52 @@ def jogar_carta(call):
     chat_id = str(chat_id)
     jogo = jogos.get(chat_id)
     jogador = jogo["jogadores"][jogo["vez"]]
+
     if call.from_user.id != jogador["id"]:
         bot.answer_callback_query(call.id, "❌ Não é sua vez!")
         return
+
     if carta not in jogador["mao"] or not carta_valida(carta, jogo["carta_mesa"], jogador["mao"]):
         bot.answer_callback_query(call.id, "❌ Carta inválida!")
         return
+
     jogador["mao"].remove(carta)
     try:
         bot.delete_message(jogador["id"], jogador.get("ultima_msg_id"))
     except:
         pass
+
     jogo["carta_mesa"] = carta
     bot.answer_callback_query(call.id, f"✅ Jogou {carta}")
     sticker_id = get_sticker_id(carta)
+
     if sticker_id:
         msg = bot.send_sticker(chat_id, sticker_id)
-
-    # Depois de enviar com sucesso, apaga o anterior
         anterior = jogo.get("msg_carta_grupo")
         jogo["msg_carta_grupo"] = msg.message_id
-
         if anterior:
             try:
                 bot.delete_message(chat_id, anterior)
             except:
                 pass
-
     else:
         bot.send_message(chat_id, f"{jogador['nome']} jogou {carta}")
+
+    # Vitória
     if not jogador["mao"]:
         bot.send_message(chat_id, f"🏆 {jogador['nome']} venceu o jogo!")
         atualizar_ranking(jogador["nome"])
         fim_de_jogo(chat_id)
         return
+
     salvar_partidas()
-    proxima_vez(chat_id)
+
+    # ⏭️ ou ↩️ com 2 jogadores => mesma pessoa joga de novo
+    if len(jogo["jogadores"]) == 2 and any(x in carta for x in ["⏭️", "↩️"]):
+        bot.send_message(chat_id, f"🔁 {jogador['nome']} joga novamente!")
+        proxima_vez(chat_id, forcar_mesmo_jogador=True)
+    else:
+        proxima_vez(chat_id)
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("comprar|"))
 def comprar_carta(call):
