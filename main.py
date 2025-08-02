@@ -304,7 +304,7 @@ def entrar_jogo(call):
 
     if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]: # volte o 1 para 2 quando for testar com mais gente
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("🚀 Iniciar partida", callback_data="iniciar_partida"))
+        kb.add(InlineKeyboardButton("🚀 Iniciar Partida", callback_data="iniciar_partida"))
         bot.send_message(chat_id, "Clique abaixo para começar a partida:", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda c: c.data == "iniciar_partida")
