@@ -191,6 +191,16 @@ def carta_valida(carta, mesa, mao):
         return True
     return cor_carta == cor_mesa or val_carta == val_mesa or "⬛" in carta
 
+@bot.message_handler(commands=["stop"])
+def cmd_stop(msg):
+    chat_id = str(msg.chat.id)
+    if chat_id in jogos:
+        del jogos[chat_id]
+        salvar_partidas()
+        bot.send_message(msg.chat.id, "🚫 A partida foi encerrada manualmente.")
+    else:
+        bot.send_message(msg.chat.id, "❌ Nenhuma partida ativa para encerrar.")
+
 @bot.message_handler(commands=["uno"])
 def cmd_uno(msg):
     iniciar_jogo(msg.chat.id)
