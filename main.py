@@ -165,8 +165,9 @@ def proxima_vez(chat_id):
 
     msg = bot.send_message(
         chat_id,
-        f"🃏 Carta atual: {carta}\n\n🎮 Sua vez: {jogador['nome']}"
+        f"🃏 Sua vez: {jogador['nome']}"
     )
+
 
     # ✅ Apaga balão anterior
     anterior = jogo.get("msg_balao")
