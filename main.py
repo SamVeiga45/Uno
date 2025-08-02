@@ -165,7 +165,7 @@ def proxima_vez(chat_id):
 
     msg = bot.send_message(
         chat_id,
-        f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
+        f"🃏 Carta atual: {carta}\n\n🎮 Sua vez: {jogador['nome']}"
     )
 
     # ✅ Apaga balão anterior
@@ -184,8 +184,20 @@ def aguardar_jogada(chat_id, nome, vez):
     time.sleep(TEMPO_POR_JOGADA)
     jogo = jogos.get(str(chat_id))
     if jogo and jogo["vez"] == vez and not jogo.get("esperando_cor"):
-        bot.send_message(chat_id, "⏰ Tempo esgotado! Próximo jogador...")
-        proxima_vez(chat_id)
+        msg = bot.send_message(chat_id, "⏰ Tempo esgotado! Próximo jogador...")
+
+        # Apaga o balão anterior se houver
+        anterior = jogos[str(chat_id)].get("msg_balao")
+        jogos[str(chat_id)]["msg_balao"] = msg.message_id
+
+        if anterior:
+            try:
+                bot.delete_message(chat_id, anterior)
+            except:
+                pass
+
+proxima_vez(chat_id)
+
 
 def enviar_mao(jogador, chat_id):
     jogo = jogos[str(chat_id)]
