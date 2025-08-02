@@ -79,6 +79,22 @@ def embaralhar_cartas():
 def distribuir_mao(baralho):
     return [baralho.pop() for _ in range(7)]
 
+def legenda_acao(carta):
+    if not carta:
+        return ""
+    partes = carta.split(" ")
+    if len(partes) < 2:
+        return ""
+    simbolo = partes[1]
+    acoes = {
+        "+2": "comprar 2",
+        "+4": "comprar 4",
+        "↩️": "inverter",
+        "⏭️": "pular",
+        "🎨": "escolher cor"
+    }
+    return acoes.get(simbolo, simbolo)  # Se for número, só repete
+
 def iniciar_jogo(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Entrar no Jogo", callback_data="entrar_jogo"))
@@ -103,7 +119,11 @@ def proxima_vez(chat_id):
     jogador = jogo["jogadores"][jogo["vez"]]
     jogo["ultima_acao"] = time.time()
     salvar_partidas()
-    bot.send_message(chat_id, f"🃏 Carta na mesa: {jogo['carta_mesa']}\\n🎯 Vez de {jogador['nome']}")
+    carta = jogo["carta_mesa"]
+    bot.send_message(
+        chat_id,
+        f"🃏 Carta atual: {carta} ({legenda_acao(carta)})\n🎮 Sua vez: {jogador['nome']}"
+    )
     enviar_mao(jogador, chat_id)
     threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
 
