@@ -95,6 +95,36 @@ def legenda_acao(carta):
     }
     return acoes.get(simbolo, simbolo)  # Se for número, só repete
 
+def legenda_cartao(carta):
+    if not carta:
+        return "Nenhuma carta na mesa."
+    
+    cor_emoji, valor = carta.split(" ", 1)
+
+    cores = {
+        "🟥": "vermelha",
+        "🟦": "azul",
+        "🟨": "amarela",
+        "🟩": "verde",
+        "⬛": "preta"
+    }
+    cor_nome = cores.get(cor_emoji, "desconhecida")
+
+    if cor_emoji == "⬛":
+        if "+4" in valor:
+            return "🤹 curinga +4 — escolha a nova cor e o próximo jogador comprará 4 cartas."
+        elif "🎨" in valor:
+            return "🤹 curinga de cor — escolha a nova cor para continuar o jogo."
+
+    if valor == "+2":
+        return f"Carta {cor_nome} +2 — o próximo jogador comprará 2 cartas ou empilhar outro +2."
+    elif valor == "↩️":
+        return f"Carta {cor_nome} de inverter — a ordem do jogo será invertida."
+    elif valor == "⏭️":
+        return f"Carta {cor_nome} de pular — o próximo jogador perderá a vez."
+
+    return f"Carta {cor_nome} {valor} — jogue uma carta {cor_nome} ou outro {valor} de qualquer cor."
+
 def iniciar_jogo(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Entrar no Jogo", callback_data="entrar_jogo"))
@@ -122,8 +152,9 @@ def proxima_vez(chat_id):
     carta = jogo["carta_mesa"]
     bot.send_message(
         chat_id,
-        f"🃏 Carta atual: {carta} ({legenda_acao(carta)})\n🎮 Sua vez: {jogador['nome']}"
+        f"🃏 Carta atual: {carta}\n\n{legenda_cartao(carta)}\n\n🎮 Sua vez: {jogador['nome']}"
     )
+
     enviar_mao(jogador, chat_id)
     threading.Thread(target=aguardar_jogada, args=(chat_id, jogador["nome"], jogo["vez"])).start()
 
