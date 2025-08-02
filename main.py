@@ -144,7 +144,10 @@ def enviar_mao(jogador, chat_id):
             keyboard.add(InlineKeyboardButton(carta, callback_data=f"jogar|{chat_id}|{carta}"))
     if jogadas_validas == 0:
         keyboard.add(InlineKeyboardButton("🛒 Comprar carta", callback_data=f"comprar|{chat_id}"))
-    bot.send_message(jogador["id"], "🎴 Suas cartas:", reply_markup=keyboard)
+    msg = bot.send_message(jogador["id"], "🎴 Suas cartas:", reply_markup=keyboard)
+    jogador.setdefault("mensagens_para_apagar", []).append(msg.message_id)
+    jogador["ultima_msg_id"] = msg.message_id  # para limpar após jogar
+
 def carta_valida(carta, mesa, mao):
     if not mesa:
         return True
@@ -200,6 +203,10 @@ def jogar_carta(call):
         bot.answer_callback_query(call.id, "❌ Carta inválida!")
         return
     jogador["mao"].remove(carta)
+    try:
+        bot.delete_message(jogador["id"], jogador.get("ultima_msg_id"))
+    except:
+        pass
     jogo["carta_mesa"] = carta
     bot.answer_callback_query(call.id, f"✅ Jogou {carta}")
     bot.send_message(chat_id, f"{jogador['nome']} jogou {carta}")
@@ -230,7 +237,18 @@ def comprar_carta(call):
 def fim_de_jogo(chat_id):
     chat_id = str(chat_id)
     if chat_id in jogos:
+        # Limpa todas as mensagens privadas dos jogadores
+    for jogador in jogos[chat_id]["jogadores"]:
+        for mid in jogador.get("mensagens_para_apagar", []):
+            try:
+                bot.delete_message(jogador["id"], mid)
+            except:
+                pass
+
         jogos.pop(chat_id)
+        # Opcional: limpar variável se quiser
+    for jogador in jogos[chat_id]["jogadores"]:
+        jogador["mensagens_para_apagar"] = []
         salvar_partidas()
         bot.send_message(int(chat_id), "Partida encerrada.")
         kb = InlineKeyboardMarkup()
