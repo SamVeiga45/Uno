@@ -292,7 +292,7 @@ def entrar_jogo(call):
         "Jogadores: " + ", ".join(j["nome"] for j in jogo["jogadores"])
     )
 
-    if len(jogo["jogadores"]) >= 1 and not jogo["jogo_iniciado"]:  # volte o 1 para 2 quando for testar com mais gente
+    if len(jogo["jogadores"]) >= 2 and not jogo["jogo_iniciado"]:  # volte o 1 para 2 quando for testar com mais gente
         jogo["jogo_iniciado"] = True
 
         for j in jogo["jogadores"]:
